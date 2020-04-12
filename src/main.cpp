@@ -57,7 +57,8 @@ void setup()
 
   DAC.setValue(throttleOutputMinValue); //set throttle output to minimum
 
-  Serial.println("Request,Output");
+  // Serial.println("Request,Output");
+  Serial.println("DAC Output");
 
 }
 
@@ -66,7 +67,7 @@ void readThrottle()
   throttleRequestRaw = analogRead(throttlePin); // read the input pin
   throttleRequestPercent = map(throttleRequestRaw,throttleMinValue,throttleMaxValue,0,100);
   if (throttleRequestPercent<0) {throttleRequestPercent = 0;}
-  // Serial.println("Throttle Request Percent " + String(throttleRequestPercent));
+
 }
 
 void readMaxSpeed()
@@ -83,6 +84,17 @@ void readAggression()
 
 void applyMotorOutput(int outputPercent)
 {
+  Serial.println(outputPercent);
+
+  //outputPercent is now 0-100
+  //if the max speed percent is 100, it will remain 0-100
+  //if the max speed is 75, it will be 0-75
+  
+  int actualOutputPercent = outputPercent * speedMaxPercent / 100;
+
+  int dacValue = map(actualOutputPercent, 0, 100, throttleOutputMinValue, throttleOutputMaxValue);
+  // Serial.println(outputPercent + "," + actualOutputPercent);
+
   // int outputPercent = map(outputPercent,0,1024,0,100);
   // Serial.println("Output Request Percent of Max: " + String(outputPercent));
 
@@ -152,15 +164,18 @@ void adjustOutput()
 
   
 
-  Serial.println( String(throttleRequestPercent) + "," + String(speedOutputPercent));
+  // Serial.println( String(throttleRequestPercent) + "," + String(speedOutputPercent));
   if (throttleRequestPercent > speedOutputPercent)
   {
     speedOutputPercent = speedOutputPercent + acceleerationPointsPerCycle;
+    if (speedOutputPercent>throttleRequestPercent) {speedOutputPercent=throttleRequestPercent;}
   }
   else if (throttleRequestPercent < speedOutputPercent)
   {
     speedOutputPercent = speedOutputPercent - decelerationPointsPerCycle;
+    if (speedOutputPercent<throttleRequestPercent){speedOutputPercent=throttleRequestPercent;}
   }
+  
 
   applyMotorOutput(speedOutputPercent);
 }
