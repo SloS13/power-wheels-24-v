@@ -7,32 +7,41 @@
 //0000000000000000
 //REQ 50%  AT
 
-float speedAdjustmentStepRatio = 0.15; //the higher the speed the higher aggression base
-float decelAdjustmentStepRatio = 0.4;  //deceleration speed.  Should be about double speed adjustment ratio
+float accelerationRateBase = 0.05; //the higher the speed the higher aggression base
+float decelerationRateBase = 0.09;  //deceleration speed.  Should be about double speed adjustment ratio
 int loopRuns = 0;
-int throttleRequest = 0; //from hall (throttleMinValue - throttleMaxValue)
-int throttleRequest_lastDisplayed;
-int speedOutput = 0; //Speed we are outputting (throttleMinValue - throttleMaxValue)
-int speedOutput_lastDisplayed;
-int speedMax = 0;             //default max speed (throttleMinValue - throttleMaxValue)
-int acceleratorSmoothing = 5; //0-1024 mapped to pot2
-int acceleratorSmoothing_lastDisplayed;
+
+int throttleRequestRaw = 0; //from hall (throttleMinValue - throttleMaxValue)
+float throttleRequestPercent = 0; //0-100
+float throttleRequestPercent_lastDisplayed;
+
+float speedOutputPercent = 0; //0-100
+float speedOutputPercent__lastDisplayed;
+
+int speedMaxRaw = 0;             //default max speed (throttleMinValue - throttleMaxValue)
+int speedMaxPercent = 0; //0-100
+int speedMaxPercent_lastDisplayed;
+
+int agroRaw = 0; //0-1024 mapped to pot2
+int agroPercent = 0;
+int agroPercent_lastDisplayed = 0;
+
+
 int brakeSmoothing = 4; //0 - 1024, manually entered
 
 int throttleOutputMinValue = map(0.8,0,5,0,4096); //0-4096
-int throttleOutputMaxValue = map(0.8,0,5,0,4096); //0-4096
+int throttleOutputMaxValue = map(4.2,0,5,0,4096); //0-4096
 
-//accelerator setup.  These will also define the min/max output
-int throttleMinValue = 180; //0-1024
-int throttleMaxValue = 890; //0-1024
+//accelerator setup.  
+int throttleMinValue = 170; //0-1024
+int throttleMaxValue = 900; //0-1024
 
 int throttlePin = A3; //pot
 
 int aggresivePin = A0;
 
 int maxSpeedPot = A1;
-int maxSpeedVal; //raw from potentiometer
-int maxSpeedVal_lastDisplayed;
+
 
 int loopCounter = 0;
 
@@ -48,87 +57,112 @@ void setup()
 
   DAC.setValue(throttleOutputMinValue); //set throttle output to minimum
 
+  Serial.println("Request,Output");
+
 }
 
 void readThrottle()
 {
-  throttleRequest = analogRead(throttlePin); // read the input pin
+  throttleRequestRaw = analogRead(throttlePin); // read the input pin
+  throttleRequestPercent = map(throttleRequestRaw,throttleMinValue,throttleMaxValue,0,100);
+  if (throttleRequestPercent<0) {throttleRequestPercent = 0;}
+  // Serial.println("Throttle Request Percent " + String(throttleRequestPercent));
 }
 
 void readMaxSpeed()
 {
-  maxSpeedVal = analogRead(maxSpeedPot); // read the input pin
+  speedMaxRaw = analogRead(maxSpeedPot); // read the input pin
+  speedMaxPercent = 50; //JAM DEBUG Override
 }
 
 void readAggression()
 {
-  acceleratorSmoothing = analogRead(aggresivePin); // read the input pin
+  agroRaw = analogRead(aggresivePin); // read the input pin
+  agroPercent = 50; //JAM DEBUG Override
 }
 
 void applyMotorOutput(int outputPercent)
 {
+  // int outputPercent = map(outputPercent,0,1024,0,100);
+  // Serial.println("Output Request Percent of Max: " + String(outputPercent));
+
+  //figure out the max of 4096 from speedMaxPercent
+  //max value at 100% speed is throttleOutputMaxValue
+  //minimum value is throttleOutputMinValue
+  //get percent of dac's max
+  int val = outputPercent * speedMaxPercent / 100;
+  int val2 = map(val,0,val,throttleOutputMinValue,throttleOutputMaxValue);
+// Serial.println("Sending to DAC: " +  String(val2));
+
   //this is where we take the maximum speed into account.
   //figure out 0-4096 value to send to DAC
+  // int valueToSendDAC = throttleOutputMaxValue * outputPercent / 100;
+  // Serial.println("throttleOutputMaxValue:"+String(throttleOutputMaxValue));
+  
+  // Serial.println("outputPercent:"+String(outputPercent));
+  // Serial.println("Sending to DAC: " + String(valueToSendDAC));
 }
+
 
 void displayThrottleData()
 {
-  if (maxSpeedVal != maxSpeedVal_lastDisplayed || acceleratorSmoothing != acceleratorSmoothing_lastDisplayed)
-  {
-    lcd.setCursor(0, 0);
-    lcd.print("                ");
-    lcd.setCursor(0, 0);
+  // if (speedMaxPercent != speedMaxPercent_lastDisplayed || agroPercent != agroPercent_lastDisplayed)
+  // {
+  //   lcd.setCursor(0, 0);
+  //   lcd.print("                ");
+  //   lcd.setCursor(0, 0);
 
-    //MAX set Speed
-    lcd.print("SPD=");
-    lcd.print(map(maxSpeedVal, 0, 1024, 1, 100));
+  //   //MAX set Speed
+  //   lcd.print("SPD=");
+  //   lcd.print(speedMaxPercent);
 
-    //ACCEL
-    lcd.print(" ACC=");
-    lcd.print(map(acceleratorSmoothing, 0, 1024, 1, 100));
-  }
+  //   //ACCEL
+  //   lcd.print(" ACC=");
+  //   lcd.print(agroPercent);
+  // }
 
-  if (throttleRequest != throttleRequest_lastDisplayed || speedOutput != speedOutput_lastDisplayed)
-  {
-    lcd.setCursor(0, 1);
-    lcd.print("                ");
-    lcd.setCursor(0, 1);
+  // if (throttleRequestPercent != throttleRequestPercent_lastDisplayed || speedOutputPercent != speedOutputPercent__lastDisplayed)
+  // {
+  //   lcd.setCursor(0, 1);
+  //   lcd.print("                ");
+  //   lcd.setCursor(0, 1);
 
-    //THROTTLE REQUEST
-    lcd.print(" RQ=");
-    lcd.print(map(throttleRequest, throttleMinValue, throttleMaxValue, 1, 100));
+  //   //THROTTLE REQUEST
+  //   lcd.print(" RQ=");
+  //   lcd.print(throttleRequestPercent);
 
-    //THROTTLE OUTPUT
-    lcd.print(" O=");
-    lcd.print(map(speedOutput, throttleMinValue, throttleMaxValue, 1, 100));
-    // lcd.print(speedOutput);
-  }
+  //   //THROTTLE OUTPUT
+  //   lcd.print(" O=");
+  //   lcd.print(speedOutputPercent);
+  //   // lcd.print(speedOutput);
+  // }
 
-  maxSpeedVal_lastDisplayed = maxSpeedVal;
-  acceleratorSmoothing_lastDisplayed = acceleratorSmoothing;
-  throttleRequest_lastDisplayed = throttleRequest;
-  speedOutput_lastDisplayed = speedOutput;
+  speedMaxPercent_lastDisplayed = speedMaxPercent;
+  agroPercent_lastDisplayed = agroPercent;
+  throttleRequestPercent_lastDisplayed = throttleRequestPercent;
 }
 
-int adjustOutput()
+void adjustOutput()
 {
   //figure out how many units to adjust based on aggression
-  int diff = abs(throttleRequest - speedOutput); //diff is the difference and 100% of it is maximum aggression
-  //we will want between probably 40% - 100% of aggression
-  float aggressionPercent = map(acceleratorSmoothing, 0, 1024, 40, 100);
+  int diff = abs(throttleRequestPercent - speedOutputPercent); 
 
-  Serial.println("aggression: " + String(aggressionPercent));
-  if (throttleRequest > speedOutput)
+  int acceleerationPointsPerCycle = agroPercent * accelerationRateBase; //adjust me later
+  int decelerationPointsPerCycle = agroPercent * decelerationRateBase; //adjust me later
+
+  
+
+  Serial.println( String(throttleRequestPercent) + "," + String(speedOutputPercent));
+  if (throttleRequestPercent > speedOutputPercent)
   {
-    float adjustAmount = (aggressionPercent / 100 * diff) * speedAdjustmentStepRatio;
-    speedOutput = speedOutput + adjustAmount;
+    speedOutputPercent = speedOutputPercent + acceleerationPointsPerCycle;
   }
-  else if (throttleRequest < speedOutput)
+  else if (throttleRequestPercent < speedOutputPercent)
   {
-    float adjustAmount = (aggressionPercent / 100 * diff) * decelAdjustmentStepRatio;
-    speedOutput = speedOutput - adjustAmount;
+    speedOutputPercent = speedOutputPercent - decelerationPointsPerCycle;
   }
-  applyMotorOutput(speedOutput);
+
+  applyMotorOutput(speedOutputPercent);
 }
 
 void loop()
@@ -151,5 +185,5 @@ void loop()
     displayThrottleData();
   }
 
-  // delay(1);
+  delay(20);
 }
