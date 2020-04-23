@@ -148,7 +148,7 @@ void readMaxSpeed()
 void readAggression()
 {
   agroRaw = analogRead(aggresivePin); // read the input pin
-  agroPercent = 50; //JAM DEBUG Override
+  agroPercent = 75; //JAM DEBUG Override
 }
 
 void applyMotorOutput(int outputPercent)
